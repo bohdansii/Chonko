@@ -1,0 +1,22 @@
+# Publish only product source, assets, build scripts and public documentation.
+/*
+!/.gitignore
+!/Package.swift
+!/Sources/
+!/Tests/
+!/Resources/
+!/scripts/
+!/design/
+!/build-app.sh
+!/README.md
+!/README.en.md
+!/LICENSE
+!/THIRD_PARTY_NOTICES.md
+!/CHANGELOG.md
+!/docs/
+/design/*
+!/design/Chonko-02-logo.svg
+!/design/Chonko-02-mascot.webp
+**/.DS_Store
+**/*.log
+**/.build/

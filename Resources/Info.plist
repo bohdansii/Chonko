@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleExecutable</key><string>ImageOptimMac</string>
+    <key>CFBundleIdentifier</key><string>local.bohdan.ImageOptimMac</string>
+    <key>CFBundleName</key><string>Chonko</string>
+    <key>CFBundleDisplayName</key><string>Chonko</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>1.0.0</string>
+    <key>CFBundleIconFile</key><string>Chonko-v0414.icns</string>
+    <key>CFBundleVersion</key><string>29</string>
+    <key>LSMinimumSystemVersion</key><string>26.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>CFBundleDevelopmentRegion</key><string>uk</string>
+    <key>CFBundleLocalizations</key><array><string>uk</string><string>en</string></array>
+    <key>NSDesktopFolderUsageDescription</key><string>Пошук та оптимізація обраних вами зображень на робочому столі.</string>
+    <key>NSDocumentsFolderUsageDescription</key><string>Пошук та оптимізація обраних вами зображень у документах.</string>
+    <key>NSDownloadsFolderUsageDescription</key><string>Пошук та оптимізація обраних вами завантажених зображень.</string>
+    <key>NSRemovableVolumesUsageDescription</key><string>Пошук та оптимізація зображень на обраних зовнішніх дисках.</string>
+    <key>CFBundleDocumentTypes</key><array><dict>
+        <key>CFBundleTypeName</key><string>Images</string>
+        <key>CFBundleTypeRole</key><string>Viewer</string>
+        <key>LSHandlerRank</key><string>Alternate</string>
+        <key>LSItemContentTypes</key><array><string>public.image</string><string>com.adobe.pdf</string><string>public.movie</string></array>
+    </dict></array>
+    <key>NSServices</key><array><dict>
+        <key>NSMenuItem</key><dict><key>default</key><string>Оптимізувати в Chonko</string></dict>
+        <key>NSMessage</key><string>optimizeImages</string>
+        <key>NSPortName</key><string>Chonko</string>
+        <key>NSSendFileTypes</key><array><string>public.image</string><string>com.adobe.pdf</string><string>public.movie</string></array>
+        <key>NSRequiredContext</key><dict><key>NSApplicationIdentifier</key><string>com.apple.finder</string></dict>
+    </dict></array>
+</dict></plist>

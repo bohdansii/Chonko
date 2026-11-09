@@ -1,0 +1,42 @@
+{
+  "cmake": {
+    "archive": "cmake.tar.gz",
+    "url": "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-macos-universal.tar.gz",
+    "sha256": "679e77a96b9ef9484cc6c1445255fc4f84206b48a65420efbedf16bdab55fbff"
+  },
+  "qpdf": {
+    "archive": "qpdf-source.tar.gz",
+    "url": "https://codeload.github.com/qpdf/qpdf/tar.gz/refs/tags/v12.4.2",
+    "sha256": "88ddeb5f25c6e9156f3113fc3994d3a5e0cdfeee398cd09dd00fabc9dac9f573"
+  },
+  "jpeg": {
+    "archive": "jpeg-source.tar.gz",
+    "url": "https://codeload.github.com/libjpeg-turbo/libjpeg-turbo/tar.gz/refs/tags/3.1.2",
+    "sha256": "560f6338b547544c4f9721b18d8b87685d433ec78b3c644c70d77adad22c55e6"
+  },
+  "x265": {
+    "archive": "x265.tar.gz",
+    "url": "https://download.videolan.org/videolan/x265/x265_4.1.tar.gz",
+    "sha256": "a31699c6a89806b74b0151e5e6a7df65de4b49050482fe5ebf8a4379d7af8f29"
+  },
+  "ffmpeg": {
+    "archive": "ffmpeg.tar.xz",
+    "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+    "sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e"
+  },
+  "ghostscript": {
+    "archive": "ghostscript.tar.gz",
+    "url": "https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10080/ghostscript-10.08.0.tar.gz",
+    "sha256": "caf199e3f233f1290b27d0972d636f66c303355f2353309b7bfddf1edda06b3d"
+  },
+  "webp": {
+    "archive": "libwebp-1.6.0.tar.gz",
+    "url": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz",
+    "sha256": "e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564"
+  },
+  "webpBinary": {
+    "archive": "libwebp-1.6.0-mac-arm64.tar.gz",
+    "url": "https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0-mac-arm64.tar.gz",
+    "sha256": "bc6bf84cc70f3f8574fba797d1e4a7dea4feebe9fa4be919f202413ea2b3b8f2"
+  }
+}
