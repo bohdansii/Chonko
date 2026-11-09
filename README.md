@@ -2,62 +2,62 @@
 
 # Chonko
 
-**Менші файли. Більше місця. Усе на твоєму Mac.**
+**Smaller files. More room. All on your Mac.**
 
-Chonko — застосунок для локального стиснення зображень, PDF та відео з українським і англійським інтерфейсом. Обирай файли, перевіряй результат і керуй збереженням у одному робочому просторі macOS.
+Chonko is a native macOS app for local image, PDF and video compression, with English and Ukrainian interfaces.
 
-[Завантажити 1.0.0](https://github.com/bohdansii/Chonko/releases/tag/v1.0.0) · [English](README.en.md) · [Повідомити про проблему](https://github.com/bohdansii/Chonko/issues)
+[Download 1.0.0](https://github.com/bohdansii/Chonko/releases/tag/v1.0.0) · [Українською](README.uk.md) · [Report an issue](https://github.com/bohdansii/Chonko/issues)
 
-## Встановлення
+## Install
 
-Потрібен **Mac з Apple Silicon (M1 або новіший), macOS 26 або новіша**. Intel Mac наразі не підтримується.
+Requires an **Apple Silicon Mac (M1 or later) running macOS 26+**. Intel Macs are not supported by this release.
 
-1. Відкрий [останній реліз](https://github.com/bohdansii/Chonko/releases/latest) і завантаж `Chonko-v1.0.0.dmg`.
-2. Відкрий DMG та перетягни **Chonko.app** у **Applications / Програми**.
-3. Запусти Chonko з «Програм». Для оновлення спочатку закрий попередню версію.
+1. Download `Chonko-v1.0.0.dmg` from [Releases](https://github.com/bohdansii/Chonko/releases/latest).
+2. Open it and drag **Chonko.app** to **Applications**.
+3. Launch it from Applications. Quit the previous version before updating.
 
-Це персональна збірка з локальним ad-hoc підписом, **без нотаризації Apple**. macOS може заблокувати завантажену копію. Якщо довіряєш цьому релізу, після спроби запуску відкрий **Системні параметри → Приватність і безпека → Усе одно відкрити**. Не вимикай Gatekeeper для всієї системи. [Інструкція Apple](https://support.apple.com/102445).
+This personal build is ad-hoc signed and **not notarized by Apple**. macOS may block a downloaded copy. If you trust this release, attempt to open it, then use **System Settings → Privacy & Security → Open Anyway**. Do not disable Gatekeeper globally. See [Apple's instructions](https://support.apple.com/102445). Installer checksums are in `SHA256SUMS.txt`.
 
-Apple Developer, Homebrew і термінал для користування не потрібні; кодеки вже всередині. Хеші файлів — у `SHA256SUMS.txt` біля інсталятора.
+No paid Apple Developer membership, Homebrew, terminal or account is required to use the app. Encoders are bundled.
 
-## Що вміє
+## Features
 
-- **Зображення:** WebP, JPEG, PNG, HEIC, TIFF, JPEG 2000 та AVIF, коли системний кодек доступний; якість і підтримувані режими без втрат.
-- **PDF:** збереження якості, збалансоване або сильніше стиснення; перевірка сторінок і тексту.
-- **Відео:** MP4/MOV/M4V → MP4, HEVC або H.264, сила стиснення та необов’язкова зміна роздільності.
-- Вибір окремих файлів чи папок, перетягування, фільтри пошуку, виключення та показ у Finder.
-- Прогрес для кожного файла, приблизний час відео, зупинка та пропуск.
-- Копії поруч, спільна папка або заміна з переміщенням оригіналів у Кошик після перевірки.
-- Статистика, порівняння результату, експорт локального звіту діагностики.
-- Нативні елементи macOS, напівпрозорі скляні панелі й анімований персонаж.
+- Images: WebP, JPEG, PNG, HEIC, TIFF, JPEG 2000 and AVIF when the system encoder is available; quality controls and supported lossless modes.
+- PDF: Preserve Quality, Balanced and Smaller File profiles, with page/text validation.
+- Video: supported MP4/MOV/M4V input to MP4, HEVC/H.264, compression presets and optional resolution limits.
+- Individual files, folders, drag and drop, search filters, persistent ignored files and Reveal in Finder.
+- Per-file progress, approximate video ETA, Stop and Skip controls.
+- Save alongside, save to a chosen folder, or verified replacement with originals moved to Trash.
+- Before/after comparison, persistent statistics and local diagnostic report export.
+- Native macOS controls, glass panels and an animated mascot.
 
-## Як почати
+## First steps
 
-Зліва обери **Зображення / PDF / Відео**, потім файли чи папку. Перевір галочки, параметри праворуч і спосіб збереження. Натисни **Оптимізувати** — автоматичної обробки при запуску немає.
+Select **Images / PDF / Video**, choose files or a folder, review selection and output settings, then press **Optimize**. Processing never starts automatically on launch.
 
-Для відео почни з **Швидко → HEVC → Збалансоване**. «Ретельніше» використовує програмний HEVC з одним проходом і потребує більше часу. «Перевірити фрагмент» дає порівняти короткий уривок; «Підібрати стиснення» перевіряє кілька налаштувань на фрагментах, не обробляючи весь файл.
+For video, start with **Fast → HEVC → Balanced**. Fast uses Apple's hardware encoder; Thorough uses single-pass software HEVC and takes longer. Preview Clip encodes a short excerpt. Suggest Compression compares samples at several bitrates; it does not optimize the entire file.
 
-Легке / Збалансоване / Сильне залишають відповідно **70% / 50% / 30% початкового бітрейту відео**. Це кількість даних, **не відсоток якості** й не гарантія кінцевої ваги. Звук теж займає місце. Для PDF і відео початковий спосіб збереження — копія поруч; для зображень — заміна з Кошиком, із підтвердженням.
+Light / Balanced / Strong retain **70% / 50% / 30% of the source video bitrate**. These are data targets, not quality percentages or guaranteed whole-file sizes. Audio contributes to the final size. PDF/video initially save alongside originals; images initially use verified replacement with a confirmation and Trash.
 
-## Захист файлів і обмеження
+## Safety and limits
 
-Системні ресурси, пакети застосунків, бібліотеки «Фото», приховані папки, символічні та жорсткі посилання пропускаються. «Увесь Mac» шукає доступні особисті файли обраного типу; це не обхід дозволів macOS. Хмарні файли, яких немає локально, не завантажуються автоматично.
+System resources, application packages, Photos libraries, hidden folders, symbolic links and hard-linked files are skipped. Entire Mac searches accessible personal files of the selected type, respecting macOS permissions. Cloud-only files are not downloaded automatically.
 
-Існуючі файли не перезаписуються. Змінений під час обробки оригінал не замінюється. Якщо результат не менший, можна зберегти або відкинути його вручну. Копії поруч і файли у Кошику продовжують займати місце — статистика різниці ваги не дорівнює фактично звільненому диску.
+Existing files are never overwritten. Originals changed during processing are not replaced. A result that is not smaller needs a manual Save or Discard decision. Copies and originals in Trash still occupy disk space; byte savings do not automatically equal reclaimed storage.
 
-HDR, RAW, анімація та складні непідтримувані зображення пропускаються. Відео: один підтримуваний прогресивний 8-бітний SDR-потік; HDR, Dolby Vision, субтитри й складні доріжки поки не підтримуються. Захищені PDF, підписи та форми пропускаються; складні документи можуть вимагати профілю збереження якості. OCR та AV1 для відео ще немає. Змішані типи файлів обробляються окремими партіями.
+Unsupported HDR/RAW/animated images are skipped. Video supports one progressive 8-bit SDR track with compatible audio; HDR, Dolby Vision, subtitles and complex track layouts are not supported yet. Encrypted PDFs, forms and signatures are skipped; complex documents may require Preserve Quality. OCR and AV1 video encoding are not included. Mixed media types use separate batches.
 
-Зміна формату змінює розширення й може порушити посилання на файл в інших програмах. Спочатку перевіряй копії важливих файлів. Стиснення з втратами не гарантує відсутності видимих змін.
+Changing formats changes file extensions and may break references in other apps. Check copies of important files first. Lossy compression cannot guarantee visually identical results.
 
-## Приватність і діагностика
+## Privacy and support
 
-Обробка відбувається **локально**: файли не надсилаються на сервер. Немає акаунта, хмарного завантаження чи автоматичної відправки діагностики.
+Processing stays **on your Mac**. Files are not uploaded, and diagnostic reports are never sent automatically.
 
-Якщо виникла проблема, відкрий **Діагностика… → Експортувати звіт…** та прикріпи JSON до issue. Після аварійного закриття спочатку знову відкрий Chonko. Звіт містить версію, параметри системи, етапи задач, очищені повідомлення кодеків і до 200 технічних подій. Назви та шляхи оригіналів не додаються. Перед публікацією власного скриншота перевір, чи немає на ньому приватних файлів.
+Use **Diagnostics… → Export Report…**, then attach the JSON to an issue. After a crash, reopen Chonko before exporting. Reports include app/system details, job stages, redacted codec errors and up to 200 technical events; original filenames and paths are excluded. Check screenshots for private content before posting them publicly.
 
-## Розробка
+## Build
 
-Swift 6, SwiftUI, AppKit, Swift Charts, ImageIO, PDFKit та AVKit; ціль — macOS 26+.
+Swift 6, SwiftUI, AppKit, Swift Charts, ImageIO, PDFKit and AVKit; macOS 26+ target. Use compatible Xcode / Command Line Tools with Swift 6.2+ and a macOS 26+ SDK.
 
 ```sh
 git clone https://github.com/bohdansii/Chonko.git
@@ -66,12 +66,10 @@ swift test --disable-sandbox
 bash build-app.sh
 ```
 
-Потрібні сумісні Xcode / Command Line Tools зі Swift 6.2+ та SDK macOS 26+. Тести створюють синтетичні файли. Бінарні інструменти ARM64 вже в `Resources/Codecs`; `python3 scripts/build-media-tools.py` відтворює медіаінструменти з перевірених джерел і отримує закріплений офіційний WebP-пакет Google. Ця команда потребує мережі та займає час.
+ARM64 tools are included in `Resources/Codecs`. To rebuild media tools and fetch the pinned official Google WebP package, run `python3 scripts/build-media-tools.py` (network required). The build script produces a DMG and ZIP in `releases/`, signing outside cloud-managed directories. It does not notarize the app.
 
-Збірка створює DMG/ZIP у `releases/`, підписуючи застосунок у тимчасовій папці. Для випуску без Developer ID нотаризація не виконується. Деталі залежностей — [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## Rights and third-party software
 
-## Авторські права
+© 2026 Bohdan ([@bohdansii](https://github.com/bohdansii)). The original Chonko source and branding are publicly visible **without an open-source license**. See [LICENSE](LICENSE).
 
-© 2026 Bohdan — [@bohdansii](https://github.com/bohdansii). Власний код і брендинг Chonko **поки не мають відкритої ліцензії**. Публічність репозиторію не є дозволом повторно використовувати чи поширювати їх. Див. [LICENSE](LICENSE).
-
-Незалежні сторонні компоненти залишаються під власними ліцензіями; ці права не обмежуються повідомленням Chonko. Вихідні коди кодеків і необхідні повідомлення доступні разом із релізом.
+Independent third-party components retain their own licenses and rights. Notices and corresponding codec sources accompany releases; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
