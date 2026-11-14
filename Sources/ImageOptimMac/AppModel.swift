@@ -39,6 +39,10 @@ import UniformTypeIdentifiers
     var status = L("Додай папку або обери «Мої файли», щоб розпочати.")
     var errorMessage: String?
     var showReplaceConfirmation = false
+    var showConversionWarning = false
+    private(set) var approvedHDRIDs: Set<String> = []
+    private(set) var approvedPDFIDs: Set<String> = []
+    var conversionWarningCount: Int { fileKind == .pdf ? chosen.filter { $0.record.media?.hasProtectedFeatures == true }.count : chosen.filter { $0.record.requiresSDRConversion }.count }
     var showRescanConfirmation = false
     var showTrashConfirmation = false
     var selectedRoot: String? { didSet { refreshVisibleRows() } }
@@ -138,7 +142,7 @@ import UniformTypeIdentifiers
         guard !busy, pendingCount == 0, kind != fileKind else { return }
         rows.removeAll(); visibleRows.removeAll(); readyCount = 0; selectedFileCount = 0; savedBytes = 0
         selectedRoot = nil; search = ""; fileKind = kind
-        saveMode = kind == .images ? .replace : .alongside
+        saveMode = .replace
         status = L("Обери файли або папку для пошуку.")
     }
 
@@ -197,7 +201,7 @@ import UniformTypeIdentifiers
         started = true
         let arguments = ProcessInfo.processInfo.arguments
         if let root = ProcessInfo.processInfo.environment["IMAGEOPTIM_QA_ROOT"] {
-            if let kind = ProcessInfo.processInfo.environment["IMAGEOPTIM_QA_KIND"].flatMap(FileKind.init(rawValue:)) { fileKind = kind; saveMode = .alongside }
+            if let kind = ProcessInfo.processInfo.environment["IMAGEOPTIM_QA_KIND"].flatMap(FileKind.init(rawValue:)) { fileKind = kind; saveMode = .replace }
             roots = [URL(fileURLWithPath: root, isDirectory: true)]
             scan(); return
         }
@@ -512,13 +516,39 @@ import UniformTypeIdentifiers
 
     func requestOptimization() {
         guard !busy, !chosen.isEmpty else { return }
+        approvedHDRIDs.removeAll(); approvedPDFIDs.removeAll()
         if saveMode == .folder && outputFolder == nil { chooseOutputFolder(); if outputFolder == nil { return } }
-        if saveMode == .replace { showReplaceConfirmation = true }
+        if needsConversionApproval { showConversionWarning = true; return }
+        beginApprovedOptimization()
+    }
+
+    private var needsConversionApproval: Bool {
+        chosen.contains { row in
+            (row.record.requiresSDRConversion && !approvedHDRIDs.contains(row.id)) ||
+            (row.record.kind == .pdf && pdfProfile != .preserve && row.record.media?.hasProtectedFeatures == true && !approvedPDFIDs.contains(row.id))
+        }
+    }
+
+    func confirmConversion(preservePDF: Bool) {
+        guard !busy else { return }
+        showConversionWarning = false
+        if preservePDF { pdfProfile = .preserve }
+        else {
+            approvedPDFIDs = Set(chosen.filter { $0.record.media?.hasProtectedFeatures == true }.map(\.id))
+            approvedHDRIDs = Set(chosen.filter { $0.record.requiresSDRConversion }.map(\.id))
+        }
+        diagnostics.record("consent", preservePDF ? "Preserve PDF features selected" : "Lossy conversion confirmed; originals retained")
+        beginApprovedOptimization()
+    }
+
+    private func beginApprovedOptimization() {
+        if saveMode == .replace && chosen.contains(where: { !approvedHDRIDs.contains($0.id) && !approvedPDFIDs.contains($0.id) }) { showReplaceConfirmation = true }
         else { optimize() }
     }
 
     func optimize() {
         guard !busy else { return }
+        if needsConversionApproval { showConversionWarning = true; return }
         let queue = chosen
         let settings = EncodeSettings(format: format, lossless: lossless, quality: Int(quality), preserveMetadata: preserveMetadata)
         let mode = saveMode, folder = outputFolder, policy = filePolicy, codecURL = codecURL
@@ -573,19 +603,30 @@ import UniformTypeIdentifiers
                 defer { activeEncodingCount -= 1; row.running = false; encodingTasks[row.id] = nil }
                 row.startedAt = .now
                 row.lastDiagnosticStage = ""; row.lastDiagnosticFraction = -1; row.remainingSeconds = nil
-                diagnostics.record("file", "Job \(row.diagnosticID); kind \(row.record.kind.rawValue); bytes \(row.record.bytes); dimensions \(row.record.width)x\(row.record.height); video mode \(videoSettings.mode.rawValue), codec \(videoSettings.codec.rawValue), bitrate \(videoSettings.bitratePercent)%")
+                let configuration: String
+                switch row.record.kind {
+                case .pdf: configuration = "PDF profile \(pdfProfile.rawValue), feature loss approved \(approvedPDFIDs.contains(row.id))"
+                case .images: configuration = "format \(settings.format.rawValue), lossless \(settings.lossless), quality \(settings.quality), HDR to SDR approved \(approvedHDRIDs.contains(row.id))"
+                case .video: configuration = "video mode \(videoSettings.mode.rawValue), codec \(videoSettings.codec.rawValue), bitrate \(videoSettings.bitratePercent)%"
+                }
+                diagnostics.record("file", "Job \(row.diagnosticID); kind \(row.record.kind.rawValue); bytes \(row.record.bytes); dimensions \(row.record.width)x\(row.record.height); " + configuration)
                 row.skipRequested = false
                 row.running = true; row.phase = L("Кодування…")
                 row.saveMode = mode; row.outputFolder = folder
                 do {
+                    let allowHDR = approvedHDRIDs.contains(row.id)
+                    let allowPDFLoss = approvedPDFIDs.contains(row.id)
+                    if allowHDR || allowPDFLoss { row.saveMode = .alongside }
                     let encoding = Task {
+                        var rowSettings = settings
+                        rowSettings.allowHDRToSDR = allowHDR
                         let progress: @Sendable (Double?) async -> Void = { [row] fraction in
                             await MainActor.run { row.progress = fraction }
                         }
                         if row.record.kind == .images {
-                            return try await ImageEncoder.encode(row.record, settings: settings, codecURL: codecURL, progress: progress)
+                            return try await ImageEncoder.encode(row.record, settings: rowSettings, codecURL: codecURL, progress: progress)
                         }
-                        return try await MediaEncoder.encode(row.record, pdfProfile: pdfProfile, video: videoSettings, tools: mediaTools, progress: progress) { [self, row] update in
+                        return try await MediaEncoder.encode(row.record, pdfProfile: pdfProfile, video: videoSettings, tools: mediaTools, allowPDFLoss: allowPDFLoss, progress: progress) { [self, row] update in
                             await MainActor.run {
                                 row.phase = update.stage; row.remainingSeconds = update.remainingSeconds
                                 status = update.stage + " · \(Int(update.fraction * 100))%"
@@ -602,6 +643,8 @@ import UniformTypeIdentifiers
                         try await encoding.value
                     } onCancel: { encoding.cancel() }
                     if Task.isCancelled || row.skipRequested { candidate.discard(); throw CancellationError() }
+                    for notice in candidate.notices { diagnostics.record("validation", "Job \(row.diagnosticID); " + notice) }
+                    row.conversionNotice = candidate.notices.isEmpty ? nil : candidate.notices.joined(separator: " ")
                     row.outputBytes = candidate.bytes
                     if row.selected { readyCount -= 1 }
                     row.candidate = candidate
@@ -610,7 +653,7 @@ import UniformTypeIdentifiers
                         row.phase = L("Результат не менший. Обери дію.")
                     } else {
                         row.phase = L("Перевірка та збереження…")
-                        let result = try await CandidateStore.save(candidate, mode: mode, folder: folder, policy: policy)
+                        let result = try await CandidateStore.save(candidate, mode: row.saveMode, folder: folder, policy: policy)
                         finish(row, result: result)
                     }
                 } catch is CancellationError {
@@ -633,7 +676,7 @@ import UniformTypeIdentifiers
         row.trashedOriginalURL = result.trashedOriginal
         row.outputURL = result.url; row.completed = true; row.selected = false; row.candidate = nil
         if result.warning != nil { diagnostics.record("save", "Output saved; original retained after replacement warning") }
-        row.phase = result.warning ?? (result.trashedOriginal == nil ? L("Збережено") : L("Збережено · оригінал у Кошику"))
+        row.phase = result.warning ?? (row.record.requiresSDRConversion ? L("Збережено SDR-копію · оригінал залишено") : (result.trashedOriginal == nil ? L("Збережено") : L("Збережено · оригінал у Кошику")))
         generatedPaths.insert(result.url.path)
         pendingIDs.remove(row.id)
         savedBytes += row.record.bytes - (row.outputBytes ?? row.record.bytes)

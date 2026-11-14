@@ -100,6 +100,7 @@ struct ContentView: View {
         .confirmationDialog(L("Відкинути тимчасові результати?"), isPresented: $model.showRescanConfirmation, titleVisibility: .visible) {
             Button(L("Відкинути й сканувати"), role: .destructive, action: model.confirmRescan)
         } message: { Text(L("Результати, що очікують рішення, буде відкинуто. Оригінали залишаться.")) }
+        .sheet(isPresented: $model.showConversionWarning) { ConversionWarningView(model: model) }
         .sheet(item: $model.videoPreview) { preview in VideoPreviewView(preview: preview) }
         .sheet(isPresented: $model.showDiagnostics) { DiagnosticsView(center: model.diagnostics) }
         .onChange(of: model.statistics.persistenceError) { _, error in
@@ -237,6 +238,7 @@ struct ContentView: View {
             TableColumn(L("Стан і дії")) { row in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(row.phase).font(.callout).lineLimit(3).help(row.phase)
+                    if let notice = row.conversionNotice { Text(notice).font(.caption).foregroundStyle(.secondary) }
                     if row.running {
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             if let started = row.startedAt, context.date.timeIntervalSince(started) >= 10, row.candidate == nil {

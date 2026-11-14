@@ -68,7 +68,7 @@ public enum ImageScanner {
         let supported: Set<String> = ["jpg", "jpeg", "png", "webp", "tif", "tiff", "avif", "heic", "heif", "bmp", "gif", "jp2", "j2k", "jpf", "tga", "ico"]
         var reason: String?
         var width = 0, height = 0, depth = 8
-        var alpha = false
+        var alpha = false, requiresSDR = false
         if !supported.contains(url.pathExtension.lowercased()) {
             switch url.pathExtension.lowercased() {
             case "svg": reason = L("SVG — вектор. Для перетворення потрібен вибір розміру; оригінал залишаємо.")
@@ -81,11 +81,8 @@ public enum ImageScanner {
             depth = info[kCGImagePropertyDepth] as? Int ?? 8
             alpha = info[kCGImagePropertyHasAlpha] as? Bool ?? false
             let color = info[kCGImagePropertyColorModel] as? String
+            requiresSDR = depth > 8 || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
             if CGImageSourceGetCount(source) != 1 { reason = L("Анімації та багатосторінкові файли пропускаються.") }
-            else if CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil {
-                reason = L("HDR-карта яскравості: пропущено для збереження HDR-даних.")
-            }
-            else if depth > 8 { reason = L("Понад 8 біт на канал: пропущено для захисту кольорів / HDR.") }
             else if hasAdditionalImageData(source) { reason = L("Є додаткові карти глибини або маски: пропущено, щоб їх не втратити.") }
             else if color != "RGB" && color != "Gray" { reason = L("Колірна модель \(color ?? L("невідома")) потребує окремої обробки.") }
             else if width <= 0 || height <= 0 || Int64(width) * Int64(height) > 100_000_000 { reason = L("Невідомі розміри або понад 100 Мп: пропущено для захисту пам’яті.") }
@@ -93,7 +90,7 @@ public enum ImageScanner {
         if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path), (attrs[.referenceCount] as? Int ?? 1) > 1 {
             reason = L("Файл має жорсткі посилання: пропущено для безпечної заміни.")
         }
-        return ImageRecord(url: url, root: root, bytes: bytes, modified: modified, width: width, height: height, depth: depth, hasAlpha: alpha, restriction: reason)
+        return ImageRecord(url: url, root: root, bytes: bytes, modified: modified, width: width, height: height, depth: depth, hasAlpha: alpha, restriction: reason, requiresSDRConversion: requiresSDR)
     }
 
     private static func hasAdditionalImageData(_ source: CGImageSource) -> Bool {

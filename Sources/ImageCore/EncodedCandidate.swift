@@ -8,6 +8,8 @@ public struct EncodedCandidate: Sendable {
     public let sourceDigest: String
     public let settings: EncodeSettings
     public var mediaFormat: String? = nil
+    public var notices: [String] = []
+    public var retainsOriginal = false
     public var isLarger: Bool { bytes >= source.bytes }
     public var savedBytes: Int64 { source.bytes - bytes }
     public func discard() { try? FileManager.default.removeItem(at: directory) }

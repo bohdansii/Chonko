@@ -4,7 +4,7 @@ import Darwin
 
 /// Bounded output, asynchronous exit notification, cancellation and timeout for bundled tools.
 public enum ExternalProcess {
-    @concurrent public static func run(_ executable: URL, _ arguments: [String], timeout: Duration = .seconds(300), onLine: @escaping @Sendable (String) async -> Void = { _ in }) async throws -> Data {
+    @concurrent public static func run(_ executable: URL, _ arguments: [String], timeout: Duration = .seconds(300), successfulExitCodes: Set<Int32> = [0], onLine: @escaping @Sendable (String) async -> Void = { _ in }) async throws -> Data {
         guard FileManager.default.isExecutableFile(atPath: executable.path) else {
             throw ImageFailure.message(L("Не знайдено вбудований інструмент: \(executable.lastPathComponent)"))
         }
@@ -53,7 +53,7 @@ public enum ExternalProcess {
             let output = try await reader.value
             try Task.checkCancellation()
             if timedOut.withLock({ $0 }) { throw MediaProcessFailure(tool: executable.lastPathComponent, status: nil, timedOut: true, output: "") }
-            guard status == 0 else {
+            guard successfulExitCodes.contains(status) else {
                 let detail = String(decoding: output.suffix(1600), as: UTF8.self)
                 throw MediaProcessFailure(tool: executable.lastPathComponent, status: status, timedOut: false, output: detail)
             }

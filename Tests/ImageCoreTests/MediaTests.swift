@@ -32,6 +32,49 @@ import Testing
         }
     }
 
+    @Test func repairablePDFWarningIsValidatedAndSaved() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let input = root.appendingPathComponent("repairable.pdf")
+        try makePDF(input)
+        let handle = try FileHandle(forWritingTo: input)
+        try handle.seekToEnd(); try handle.write(contentsOf: Data(repeating: 32, count: 4096)); try handle.close()
+        let values = try input.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+        let source = try MediaInspector.inspectPDF(url: input, root: root, bytes: Int64(values.fileSize!), modified: values.contentModificationDate!)
+        let result = try await MediaEncoder.encode(source, pdfProfile: .preserve, video: VideoSettings(), tools: tools) { _ in }
+        defer { result.discard() }
+        #expect(result.notices.contains { $0.contains("відновлено") })
+        let document = try #require(PDFDocument(url: result.file))
+        #expect(document.pageCount == 1 && document.string?.contains("Chonko PDF test") == true)
+    }
+
+    @Test func interactivePDFRequiresConsentOrPreserveProfile() async throws {
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let input = root.appendingPathComponent("linked.pdf")
+        try makePDF(input)
+        let document = try #require(PDFDocument(url: input))
+        let link = PDFAnnotation(bounds: CGRect(x: 50, y: 730, width: 150, height: 30), forType: .link, withProperties: nil)
+        link.url = URL(string: "https://example.com")
+        document.page(at: 0)?.addAnnotation(link)
+        #expect(document.write(to: input))
+        let values = try input.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+        let source = try MediaInspector.inspectPDF(url: input, root: root, bytes: Int64(values.fileSize!), modified: values.contentModificationDate!)
+        #expect(source.media?.hasProtectedFeatures == true)
+        do {
+            _ = try await MediaEncoder.encode(source, pdfProfile: .balanced, video: VideoSettings(), tools: tools) { _ in }
+            Issue.record("Interactive PDF processed without confirmation")
+        } catch { #expect(error.localizedDescription.contains("Зберегти якість")) }
+        let preserved = try await MediaEncoder.encode(source, pdfProfile: .preserve, video: VideoSettings(), tools: tools) { _ in }
+        defer { preserved.discard() }
+        let page = try #require(PDFDocument(url: preserved.file)?.page(at: 0))
+        #expect(page.annotations.first?.url == link.url)
+        let compressed = try await MediaEncoder.encode(source, pdfProfile: .balanced, video: VideoSettings(), tools: tools, allowPDFLoss: true) { _ in }
+        #expect(compressed.retainsOriginal)
+        let saved = try await CandidateStore.save(compressed, mode: .replace, folder: nil, policy: ScanPolicy(), allowLarger: true)
+        #expect(saved.trashedOriginal == nil && FileManager.default.fileExists(atPath: input.path))
+    }
+
     @Test func videoBitrateReductionPreservesDurationFramesAndAudio() async throws {
         let root = try directory()
         defer { try? FileManager.default.removeItem(at: root) }

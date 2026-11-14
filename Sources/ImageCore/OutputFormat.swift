@@ -107,6 +107,7 @@ public struct EncodeSettings: Sendable {
     public var lossless: Bool
     public var quality: Int
     public var preserveMetadata: Bool
+    public var allowHDRToSDR = false
     public init(format: OutputFormat = .webp, lossless: Bool = false, quality: Int = 75, preserveMetadata: Bool = true) {
         self.format = format
         self.lossless = lossless || format.alwaysLossless

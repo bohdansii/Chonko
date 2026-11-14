@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.1 — 2026-11-14
+
+- Default all three media modes to verified replacement, moving originals to Trash only after a successful save.
+- Keep explicit conversion warnings and original retention for HDR→SDR and approved PDF feature loss.
+- Includes the PDF repair and confirmed-conversion changes described below.
+
+## 1.1.0 — 2026-11-14
+
+Internal build; these fixes are included in the public 1.1.1 release.
+
+- Accept qpdf's warning-only exit status during structural repair, then strictly check and validate the repaired result.
+- Offer interactive/tagged PDFs a choice between Preserve Quality or explicitly confirmed lossy compression of a copy.
+- Allow HDR/high-bit-depth photos to become 8-bit SDR copies after a clear warning; retain originals even if Replace was selected.
+- Show repair/conversion notices per file and record confirmations/validation in local diagnostics.
+
 ## 1.0.0 — 2026-11-09
 
 First public release of Chonko for Apple Silicon Macs running macOS 26 or later.

@@ -2,7 +2,7 @@
 set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${IMAGEOPTIM_BUILD_DIR:-$PROJECT_ROOT/.work/release-v03}"
-APP_PATH="${IMAGEOPTIM_APP_PATH:-$PROJECT_ROOT/releases/Chonko-v1.0.0.app}"
+APP_PATH="${IMAGEOPTIM_APP_PATH:-$PROJECT_ROOT/releases/Chonko-v1.1.1.app}"
 export CLANG_MODULE_CACHE_PATH="$BUILD_DIR/module-cache"
 export SWIFT_MODULECACHE_PATH="$BUILD_DIR/module-cache"
 swift build --package-path "$PROJECT_ROOT" --scratch-path "$BUILD_DIR" --configuration release --disable-sandbox

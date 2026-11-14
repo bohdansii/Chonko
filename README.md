@@ -6,13 +6,13 @@
 
 Chonko is a native macOS app for local image, PDF and video compression, with English and Ukrainian interfaces.
 
-[Download 1.0.0](https://github.com/bohdansii/Chonko/releases/tag/v1.0.0) · [Українською](README.uk.md) · [Report an issue](https://github.com/bohdansii/Chonko/issues)
+[Download 1.1.1](https://github.com/bohdansii/Chonko/releases/tag/v1.1.1) · [Українською](README.uk.md) · [Report an issue](https://github.com/bohdansii/Chonko/issues)
 
 ## Install
 
 Requires an **Apple Silicon Mac (M1 or later) running macOS 26+**. Intel Macs are not supported by this release.
 
-1. Download `Chonko-v1.0.0.dmg` from [Releases](https://github.com/bohdansii/Chonko/releases/latest).
+1. Download `Chonko-v1.1.1.dmg` from [Releases](https://github.com/bohdansii/Chonko/releases/latest).
 2. Open it and drag **Chonko.app** to **Applications**.
 3. Launch it from Applications. Quit the previous version before updating.
 
@@ -37,7 +37,7 @@ Select **Images / PDF / Video**, choose files or a folder, review selection and 
 
 For video, start with **Fast → HEVC → Balanced**. Fast uses Apple's hardware encoder; Thorough uses single-pass software HEVC and takes longer. Preview Clip encodes a short excerpt. Suggest Compression compares samples at several bitrates; it does not optimize the entire file.
 
-Light / Balanced / Strong retain **70% / 50% / 30% of the source video bitrate**. These are data targets, not quality percentages or guaranteed whole-file sizes. Audio contributes to the final size. PDF/video initially save alongside originals; images initially use verified replacement with a confirmation and Trash.
+Light / Balanced / Strong retain **70% / 50% / 30% of the source video bitrate**. These are data targets, not quality percentages or guaranteed whole-file sizes. Audio contributes to the final size. Images, PDF and video default to verified replacement, with confirmation and originals moved to Trash after successful saving. Confirmed HDR→SDR and lossy PDF feature conversion save copies and retain originals.
 
 ## Safety and limits
 
@@ -45,7 +45,7 @@ System resources, application packages, Photos libraries, hidden folders, symbol
 
 Existing files are never overwritten. Originals changed during processing are not replaced. A result that is not smaller needs a manual Save or Discard decision. Copies and originals in Trash still occupy disk space; byte savings do not automatically equal reclaimed storage.
 
-Unsupported HDR/RAW/animated images are skipped. Video supports one progressive 8-bit SDR track with compatible audio; HDR, Dolby Vision, subtitles and complex track layouts are not supported yet. Encrypted PDFs, forms and signatures are skipped; complex documents may require Preserve Quality. OCR and AV1 video encoding are not included. Mixed media types use separate batches.
+RAW and animated images are skipped. HDR/high-bit-depth photos can be converted to 8-bit SDR copies after a warning; HDR brightness is lost and originals are retained. Video supports one progressive 8-bit SDR track with compatible audio; HDR, Dolby Vision, subtitles and complex track layouts are not supported yet. Encrypted PDFs, forms and signatures are skipped; interactive or tagged PDFs offer Preserve Quality or confirmed lossy compression of a copy. Recoverable qpdf warnings no longer block structural repair; outputs still require validation. OCR and AV1 video encoding are not included. Mixed media types use separate batches.
 
 Changing formats changes file extensions and may break references in other apps. Check copies of important files first. Lossy compression cannot guarantee visually identical results.
 

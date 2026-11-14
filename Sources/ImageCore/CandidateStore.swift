@@ -47,7 +47,7 @@ public enum CandidateStore {
             throw ImageFailure.message(L("Копія не пройшла перевірку. Оригінал збережено."))
         }
         var trashed: NSURL?
-        if mode == .replace {
+        if mode == .replace && !candidate.retainsOriginal {
             do {
                 guard try ImageEncoder.sha256(source) == candidate.sourceDigest else { throw ImageFailure.message(L("Оригінал змінився перед заміною.")) }
                 try fm.trashItem(at: source, resultingItemURL: &trashed)

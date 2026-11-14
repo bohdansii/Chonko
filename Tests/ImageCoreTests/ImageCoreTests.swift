@@ -36,8 +36,37 @@ struct ImageCoreTests {
         #expect(CGImageSourceCopyAuxiliaryDataInfoAtIndex(image, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil)
         let attributes = try fm.attributesOfItem(atPath: url.path)
         let record = ImageScanner.inspect(url: url, root: url.deletingLastPathComponent(), bytes: (attributes[.size] as? NSNumber)!.int64Value, modified: attributes[.modificationDate] as! Date)
-        #expect(!record.isEligible)
-        #expect(record.restriction?.contains("HDR") == true)
+        #expect(record.isEligible)
+        #expect(record.requiresSDRConversion)
+    }
+
+    @Test func hdrConversionRequiresConsentAndKeepsOriginal() async throws {
+        let original = try #require(Bundle.module.url(forResource: "hdr-gainmap", withExtension: "jpg", subdirectory: "Fixtures"))
+        let root = try directory()
+        defer { try? fm.removeItem(at: root) }
+        let input = root.appendingPathComponent("hdr.jpg")
+        try fm.copyItem(at: original, to: input)
+        let values = try input.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+        let record = ImageScanner.inspect(url: input, root: root, bytes: Int64(values.fileSize!), modified: values.contentModificationDate!)
+        let hash = try ImageEncoder.sha256(input)
+        var settings = EncodeSettings(format: .webp)
+        do {
+            _ = try await ImageEncoder.encode(record, settings: settings, codecURL: codec) { _ in }
+            Issue.record("HDR converted without consent")
+        } catch { #expect(error.localizedDescription.contains("підтвердження")) }
+        settings.allowHDRToSDR = true
+        for format in [OutputFormat.webp, .png, .jpeg] {
+            settings.format = format
+            let candidate = try await ImageEncoder.encode(record, settings: settings, codecURL: codec) { _ in }
+            #expect(candidate.retainsOriginal)
+            let decoded = try #require(CGImageSourceCreateWithURL(candidate.file as CFURL, nil))
+            #expect(CGImageSourceCopyAuxiliaryDataInfoAtIndex(decoded, 0, kCGImageAuxiliaryDataTypeISOGainMap) == nil)
+            let props = try #require(CGImageSourceCopyPropertiesAtIndex(decoded, 0, nil) as? [CFString: Any])
+            #expect(props[kCGImagePropertyDepth] as? Int == 8)
+            let saved = try await CandidateStore.save(candidate, mode: .replace, folder: nil, policy: ScanPolicy(), allowLarger: true)
+            #expect(saved.trashedOriginal == nil)
+            #expect(try ImageEncoder.sha256(input) == hash)
+        }
     }
 
     @Test func scanSkipsPackagesAndSymlinksAndDeduplicates() async throws {

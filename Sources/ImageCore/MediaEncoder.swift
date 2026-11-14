@@ -3,7 +3,7 @@ import PDFKit
 import CoreGraphics
 
 public enum MediaEncoder {
-    @concurrent public static func encode(_ source: ImageRecord, pdfProfile: PDFProfile, video: VideoSettings, tools: MediaTools, progress: @escaping @Sendable (Double?) async -> Void, update: @escaping @Sendable (MediaProgress) async -> Void = { _ in }) async throws -> EncodedCandidate {
+    @concurrent public static func encode(_ source: ImageRecord, pdfProfile: PDFProfile, video: VideoSettings, tools: MediaTools, allowPDFLoss: Bool = false, progress: @escaping @Sendable (Double?) async -> Void, update: @escaping @Sendable (MediaProgress) async -> Void = { _ in }) async throws -> EncodedCandidate {
         let fm = FileManager.default
         let directory = fm.temporaryDirectory.appendingPathComponent("Chonko-media-" + UUID().uuidString, isDirectory: true)
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -22,8 +22,9 @@ public enum MediaEncoder {
         guard snapshot.isEligible else { throw ImageFailure.message(snapshot.restriction ?? L("Файл більше не підтримується.")) }
         let output = directory.appendingPathComponent(source.kind == .pdf ? "result.pdf" : "result.mp4")
         await progress(nil)
+        var notices: [String] = []
         if source.kind == .pdf {
-            try await encodePDF(input, output: output, source: snapshot, profile: pdfProfile, tools: tools, progress: progress)
+            notices = try await encodePDF(input, output: output, source: snapshot, profile: pdfProfile, allowFeatureLoss: allowPDFLoss, tools: tools, progress: progress)
         } else {
             try await encodeVideo(input, output: output, source: snapshot, settings: video, tools: tools, progress: progress, update: update)
         }
@@ -33,14 +34,18 @@ public enum MediaEncoder {
         try fm.removeItem(at: input)
         keep = true
         await progress(1)
-        return EncodedCandidate(source: source, directory: directory, file: output, bytes: bytes, sourceDigest: digest, settings: EncodeSettings(), mediaFormat: source.kind == .pdf ? "PDF" : video.codec.title)
+        return EncodedCandidate(source: source, directory: directory, file: output, bytes: bytes, sourceDigest: digest, settings: EncodeSettings(), mediaFormat: source.kind == .pdf ? "PDF" : video.codec.title, notices: notices, retainsOriginal: source.kind == .pdf && allowPDFLoss && pdfProfile != .preserve && snapshot.media?.hasProtectedFeatures == true)
     }
 
-    private static func encodePDF(_ input: URL, output: URL, source: ImageRecord, profile: PDFProfile, tools: MediaTools, progress: @escaping @Sendable (Double?) async -> Void) async throws {
+    private static func encodePDF(_ input: URL, output: URL, source: ImageRecord, profile: PDFProfile, allowFeatureLoss: Bool, tools: MediaTools, progress: @escaping @Sendable (Double?) async -> Void) async throws -> [String] {
+        var notices: [String] = []
         if profile == .preserve {
-            _ = try await ExternalProcess.run(tools.tool("qpdf"), ["--object-streams=generate", "--compress-streams=y", "--recompress-flate", "--compression-level=9", input.path, output.path])
+            let report = try await ExternalProcess.run(tools.tool("qpdf"), ["--object-streams=generate", "--compress-streams=y", "--recompress-flate", "--compression-level=9", input.path, output.path], successfulExitCodes: [0, 3])
+            if String(decoding: report, as: UTF8.self).contains("WARNING:") {
+                notices.append(L("Структуру PDF відновлено; результат пройшов перевірку."))
+            }
         } else {
-            guard source.media?.hasProtectedFeatures != true else {
+            guard source.media?.hasProtectedFeatures != true || allowFeatureLoss else {
                 throw ImageFailure.message(L("PDF має інтерактивні елементи, вкладення або теги доступності. Обери «Зберегти якість»."))
             }
             let args = ["-dSAFER", "-dBATCH", "-dNOPAUSE", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.7", "-dAutoRotatePages=/None", "-dPreserveAnnots=true", "-dDetectDuplicateImages=true", "-dDownsampleColorImages=true", "-dColorImageDownsampleType=/Bicubic", "-dColorImageResolution=\(profile.dpi)", "-dAutoFilterColorImages=false", "-dColorImageFilter=/DCTEncode", "-dDownsampleGrayImages=true", "-dGrayImageResolution=\(profile.dpi)", "-dDownsampleMonoImages=true", "-dMonoImageResolution=300", "-dAutoFilterGrayImages=false", "-dGrayImageFilter=/DCTEncode", "-dPassThroughJPEGImages=false", "-sOutputFile=\(output.path)", "-c", "<< /ColorImageDict << /QFactor \(profile.jpegQFactor) /Blend 1 /ColorTransform 1 >> /GrayImageDict << /QFactor \(profile.jpegQFactor) /Blend 1 >> >> setdistillerparams", "-f", input.path]
@@ -52,10 +57,14 @@ public enum MediaEncoder {
             }
         }
         _ = try await ExternalProcess.run(tools.tool("qpdf"), ["--check", output.path], timeout: .seconds(60))
-        try validatePDF(input: input, output: output)
+        try validatePDF(input: input, output: output, allowFeatureLoss: allowFeatureLoss && profile != .preserve)
+        if allowFeatureLoss && profile != .preserve && source.media?.hasProtectedFeatures == true {
+            notices.append(L("Спеціальні елементи PDF могли змінитися; оригінал збережено."))
+        }
+        return notices
     }
 
-    private static func validatePDF(input: URL, output: URL) throws {
+    private static func validatePDF(input: URL, output: URL, allowFeatureLoss: Bool) throws {
         guard let before = PDFDocument(url: input), let after = PDFDocument(url: output), before.pageCount == after.pageCount, !after.isEncrypted else {
             throw ImageFailure.message(L("PDF не пройшов перевірку сторінок. Оригінал збережено."))
         }
@@ -65,7 +74,7 @@ public enum MediaEncoder {
             let ar = a.bounds(for: .mediaBox), br = b.bounds(for: .mediaBox)
             let normalize: (String?) -> String = { ($0 ?? "").split(whereSeparator: \.isWhitespace).joined(separator: " ") }
             guard abs(ar.width - br.width) < 1, abs(ar.height - br.height) < 1, a.rotation == b.rotation,
-                  normalize(a.string) == normalize(b.string), a.annotations.count == b.annotations.count else {
+                  normalize(a.string) == normalize(b.string), (allowFeatureLoss || (a.annotations.count == b.annotations.count && zip(a.annotations, b.annotations).allSatisfy { $0.url == $1.url && $0.action?.type == $1.action?.type })) else {
                 throw ImageFailure.message(L("Змінилися текст, розміри або примітки PDF. Оригінал збережено."))
             }
             // Render every page to exercise the result rather than trusting only its header.

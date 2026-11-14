@@ -20,6 +20,7 @@ import ImageCore
     var running = false
     var completed = false
     var outputBytes: Int64?
+    var conversionNotice: String?
     var outputURL: URL?
     var trashedOriginalURL: URL?
     var originalLocation: URL { trashedOriginalURL ?? record.url }
@@ -30,5 +31,6 @@ import ImageCore
         self.record = record
         selected = record.isEligible
         if let restriction = record.restriction { phase = restriction }
+        else if record.requiresSDRConversion { phase = L("HDR · перед стисненням запитаємо підтвердження SDR") }
     }
 }

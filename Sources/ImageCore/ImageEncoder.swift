@@ -1,6 +1,7 @@
 import Foundation
 import ImageIO
 import CryptoKit
+import CoreImage
 
 public enum ImageEncoder {
     @concurrent public static func encode(_ source: ImageRecord, settings: EncodeSettings, codecURL: URL, progress: @Sendable (Double?) async -> Void) async throws -> EncodedCandidate {
@@ -26,25 +27,34 @@ public enum ImageEncoder {
         guard try sha256(source.url) == digest else { throw ImageFailure.message(L("Файл змінюється іншою програмою. Спробуй пізніше.")) }
         let snapshot = ImageScanner.inspect(url: input, root: directory, bytes: source.bytes, modified: source.modified)
         guard snapshot.isEligible else { throw ImageFailure.message(snapshot.restriction ?? L("Зображення більше не підтримується.")) }
+        if snapshot.requiresSDRConversion && !settings.allowHDRToSDR {
+            throw ImageFailure.message(L("HDR потребує підтвердження перетворення на SDR."))
+        }
+        var encodingInput = input
+        if snapshot.requiresSDRConversion {
+            encodingInput = directory.appendingPathComponent("sdr-input.png")
+            try convertToSDR(input: input, output: encodingInput, preserveMetadata: settings.preserveMetadata)
+            try Task.checkCancellation()
+        }
         if settings.format == .jpeg && snapshot.hasAlpha { throw ImageFailure.message(L("JPEG не підтримує прозорість. Обери WebP або PNG.")) }
         await progress(nil)
         if settings.format == .webp {
             guard fm.isExecutableFile(atPath: codecURL.path) else { throw ImageFailure.message(L("Не знайдено вбудований кодек cwebp.")) }
             let directlySupported: Set<String> = ["jpg", "jpeg", "png", "webp", "tif", "tiff"]
-            let inputSource = CGImageSourceCreateWithURL(input as CFURL, nil)
+            let inputSource = CGImageSourceCreateWithURL(encodingInput as CFURL, nil)
             let properties = inputSource.flatMap { CGImageSourceCopyPropertiesAtIndex($0, 0, nil) as? [CFString: Any] }
             let orientation = properties?[kCGImagePropertyOrientation] as? Int ?? 1
             let retainOrientationOnly = !settings.preserveMetadata && orientation != 1
-            var webpInput = input
+            var webpInput = encodingInput
             if !directlySupported.contains(source.url.pathExtension.lowercased()) || retainOrientationOnly {
                 webpInput = directory.appendingPathComponent("decoded-input.png")
-                try nativeEncode(input: input, output: webpInput, settings: EncodeSettings(format: .png, preserveMetadata: settings.preserveMetadata))
+                try nativeEncode(input: encodingInput, output: webpInput, settings: EncodeSettings(format: .png, preserveMetadata: settings.preserveMetadata))
                 try Task.checkCancellation()
             }
             try await runWebP(input: webpInput, output: output, settings: settings, retainOrientationOnly: retainOrientationOnly, codecURL: codecURL, progress: progress)
-            if webpInput != input { try fm.removeItem(at: webpInput) }
+            if webpInput != encodingInput { try fm.removeItem(at: webpInput) }
         } else {
-            try nativeEncode(input: input, output: output, settings: settings)
+            try nativeEncode(input: encodingInput, output: output, settings: settings)
         }
         try Task.checkCancellation()
         // Force a full decode before any source can be moved to Trash.
@@ -57,7 +67,25 @@ public enum ImageEncoder {
         try fm.removeItem(at: input)
         keep = true
         await progress(1)
-        return EncodedCandidate(source: source, directory: directory, file: output, bytes: bytes, sourceDigest: digest, settings: settings)
+        return EncodedCandidate(source: source, directory: directory, file: output, bytes: bytes, sourceDigest: digest, settings: settings, notices: snapshot.requiresSDRConversion ? [L("HDR перетворено на SDR; оригінал збережено.")] : [], retainsOriginal: snapshot.requiresSDRConversion)
+    }
+
+    private static func convertToSDR(input: URL, output: URL, preserveMetadata: Bool) throws {
+        guard let source = CGImageSourceCreateWithURL(input as CFURL, nil),
+              let image = CIImage(contentsOf: input, options: [.toneMapHDRtoSDR: true, .applyOrientationProperty: false]),
+              let color = CGColorSpace(name: CGColorSpace.sRGB),
+              let decoded = CIContext().createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: color),
+              let destination = CGImageDestinationCreateWithURL(output as CFURL, "public.png" as CFString, 1, nil) else {
+            throw ImageFailure.message(L("Не вдалося перетворити HDR на SDR. Оригінал збережено."))
+        }
+        let original = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+        var properties: [CFString: Any] = [:]
+        // Keep orientation and ordinary metadata; do not copy HDR profiles or auxiliary maps.
+        for key in [kCGImagePropertyOrientation, kCGImagePropertyExifDictionary, kCGImagePropertyGPSDictionary, kCGImagePropertyIPTCDictionary] {
+            if key == kCGImagePropertyOrientation || preserveMetadata { properties[key] = original[key] }
+        }
+        CGImageDestinationAddImage(destination, decoded, properties as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { throw ImageFailure.message(L("Не вдалося записати SDR-копію. Оригінал збережено.")) }
     }
 
     private static func runWebP(input: URL, output: URL, settings: EncodeSettings, retainOrientationOnly: Bool, codecURL: URL, progress: @Sendable (Double?) async -> Void) async throws {
