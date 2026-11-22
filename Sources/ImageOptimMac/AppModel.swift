@@ -20,6 +20,18 @@ import UniformTypeIdentifiers
     var roots: [URL] = []
     var rows: [ImageRowModel] = []
     var format: OutputFormat = .webp
+    var preserveImageFormat = false
+    var imageSizeReduction = 0.0
+    var imageResizePreset = 100 {
+        didSet { if imageResizePreset > 0 { imageSizeReduction = Double(100 - imageResizePreset) } }
+    }
+    var imageScalePercent: Int { 100 - Int(imageSizeReduction.rounded()) }
+    var resizeExample: String? {
+        guard let record = chosen.first?.record else { return nil }
+        var settings = EncodeSettings(); settings.scalePercent = imageScalePercent
+        let result = settings.outputDimensions(width: record.width, height: record.height)
+        return "\(record.width) × \(record.height) → \(result.width) × \(result.height) px"
+    }
     var lossless = false
     var quality = 75.0
     var preserveMetadata = true
@@ -516,6 +528,10 @@ import UniformTypeIdentifiers
 
     func requestOptimization() {
         guard !busy, !chosen.isEmpty else { return }
+        if fileKind == .images && preserveImageFormat && imageSizeReduction == 0 {
+            errorMessage = L("Обери зменшення розмірів нижче. Поточний формат залишиться без змін.")
+            return
+        }
         approvedHDRIDs.removeAll(); approvedPDFIDs.removeAll()
         if saveMode == .folder && outputFolder == nil { chooseOutputFolder(); if outputFolder == nil { return } }
         if needsConversionApproval { showConversionWarning = true; return }
@@ -550,7 +566,10 @@ import UniformTypeIdentifiers
         guard !busy else { return }
         if needsConversionApproval { showConversionWarning = true; return }
         let queue = chosen
-        let settings = EncodeSettings(format: format, lossless: lossless, quality: Int(quality), preserveMetadata: preserveMetadata)
+        var requestedSettings = EncodeSettings(format: format, lossless: lossless, quality: Int(quality), preserveMetadata: preserveMetadata)
+        requestedSettings.preserveInputFormat = preserveImageFormat
+        requestedSettings.scalePercent = imageScalePercent
+        let settings = requestedSettings
         let mode = saveMode, folder = outputFolder, policy = filePolicy, codecURL = codecURL
         optimizing = true
         isStopping = false
@@ -606,7 +625,7 @@ import UniformTypeIdentifiers
                 let configuration: String
                 switch row.record.kind {
                 case .pdf: configuration = "PDF profile \(pdfProfile.rawValue), feature loss approved \(approvedPDFIDs.contains(row.id))"
-                case .images: configuration = "format \(settings.format.rawValue), lossless \(settings.lossless), quality \(settings.quality), HDR to SDR approved \(approvedHDRIDs.contains(row.id))"
+                case .images: configuration = "format \(settings.format.rawValue), lossless \(settings.lossless), quality \(settings.quality), scale \(settings.scalePercent)%, preserve format \(settings.preserveInputFormat), HDR to SDR approved \(approvedHDRIDs.contains(row.id))"
                 case .video: configuration = "video mode \(videoSettings.mode.rawValue), codec \(videoSettings.codec.rawValue), bitrate \(videoSettings.bitratePercent)%"
                 }
                 diagnostics.record("file", "Job \(row.diagnosticID); kind \(row.record.kind.rawValue); bytes \(row.record.bytes); dimensions \(row.record.width)x\(row.record.height); " + configuration)
@@ -645,6 +664,10 @@ import UniformTypeIdentifiers
                     if Task.isCancelled || row.skipRequested { candidate.discard(); throw CancellationError() }
                     for notice in candidate.notices { diagnostics.record("validation", "Job \(row.diagnosticID); " + notice) }
                     row.conversionNotice = candidate.notices.isEmpty ? nil : candidate.notices.joined(separator: " ")
+                    if row.record.kind == .images {
+                        let size = candidate.settings.outputDimensions(width: row.record.width, height: row.record.height)
+                        row.outputPixelSize = "\(size.width) × \(size.height) px"
+                    }
                     row.outputBytes = candidate.bytes
                     if row.selected { readyCount -= 1 }
                     row.candidate = candidate

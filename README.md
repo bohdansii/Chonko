@@ -6,13 +6,13 @@
 
 Chonko is a native macOS app for local image, PDF and video compression, with English and Ukrainian interfaces.
 
-[Download 1.1.1](https://github.com/bohdansii/Chonko/releases/tag/v1.1.1) · [Українською](README.uk.md) · [Report an issue](https://github.com/bohdansii/Chonko/issues)
+[Download 1.2.0](https://github.com/bohdansii/Chonko/releases/tag/v1.2.0) · [Українською](README.uk.md) · [Report an issue](https://github.com/bohdansii/Chonko/issues)
 
 ## Install
 
 Requires an **Apple Silicon Mac (M1 or later) running macOS 26+**. Intel Macs are not supported by this release.
 
-1. Download `Chonko-v1.1.1.dmg` from [Releases](https://github.com/bohdansii/Chonko/releases/latest).
+1. Download `Chonko-v1.2.0.dmg` from [Releases](https://github.com/bohdansii/Chonko/releases/latest).
 2. Open it and drag **Chonko.app** to **Applications**.
 3. Launch it from Applications. Quit the previous version before updating.
 
@@ -23,6 +23,8 @@ No paid Apple Developer membership, Homebrew, terminal or account is required to
 ## Features
 
 - Images: WebP, JPEG, PNG, HEIC, TIFF, JPEG 2000 and AVIF when the system encoder is available; quality controls and supported lossless modes.
+- Pixel resizing: 1× / 0.75× / 0.5× / 0.25× presets, or a custom 0–90% width/height reduction.
+- Original Format mode for resizing supported images without changing their image format.
 - PDF: Preserve Quality, Balanced and Smaller File profiles, with page/text validation.
 - Video: supported MP4/MOV/M4V input to MP4, HEVC/H.264, compression presets and optional resolution limits.
 - Individual files, folders, drag and drop, search filters, persistent ignored files and Reveal in Finder.
@@ -38,6 +40,14 @@ Select **Images / PDF / Video**, choose files or a folder, review selection and 
 For video, start with **Fast → HEVC → Balanced**. Fast uses Apple's hardware encoder; Thorough uses single-pass software HEVC and takes longer. Preview Clip encodes a short excerpt. Suggest Compression compares samples at several bitrates; it does not optimize the entire file.
 
 Light / Balanced / Strong retain **70% / 50% / 30% of the source video bitrate**. These are data targets, not quality percentages or guaranteed whole-file sizes. Audio contributes to the final size. Images, PDF and video default to verified replacement, with confirmation and originals moved to Trash after successful saving. Confirmed HDR→SDR and lossy PDF feature conversion save copies and retain originals.
+
+### Resizing images
+
+Select the images, then choose a **Scale** under **Pixel Dimensions**. A 0.5× scale turns 6000 × 2000 into 3000 × 1000. The same scale applies to every selected image, with whole-pixel rounding and a minimum dimension of one pixel. No upscaling is performed.
+
+Choose **Original Format** in the format menu to resize without switching formats. Supported writable formats are JPEG, PNG, WebP, HEIC/HEIF, TIFF, JPEG 2000 and AVIF when available. Unsupported original formats are skipped with an explanation; you can choose another output format explicitly. JPEG/HEIC/AVIF resizing requires high-quality re-encoding, so retaining a format does not mean bit-identical or lossless output. HDR-to-SDR conversion still needs confirmation and retains the original.
+
+A scale percentage describes width and height, not file bytes or quality. **Custom Reduction** instead asks how much to remove: Reduce By 25% means retaining 75% of each dimension. A smaller image is not guaranteed to be a smaller file; the existing Save/Discard decision remains available.
 
 ## Safety and limits
 

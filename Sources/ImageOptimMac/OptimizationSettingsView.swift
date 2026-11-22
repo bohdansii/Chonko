@@ -7,27 +7,43 @@ struct OptimizationSettingsView: View {
         Form {
             if model.fileKind == .images {
             Section(L("Формат")) {
-                Picker(L("Зберегти як"), selection: $model.format) {
+                HStack(alignment: .center) {
+                Text(L("Зберегти як"))
+                Spacer(minLength: 8)
+                Picker(L("Зберегти як"), selection: Binding(get: { model.preserveImageFormat ? "original" : model.format.rawValue }, set: { value in
+                    if value == "original" { model.preserveImageFormat = true }
+                    else if let format = OutputFormat(rawValue: value) { model.preserveImageFormat = false; model.format = format }
+                })) {
+                    Text(L("Поточний формат")).tag("original")
                     ForEach(OutputFormat.allCases) { format in
-                        Text(format.title + (format.isAvailable ? "" : L(" · недоступний"))).tag(format).disabled(!format.isAvailable)
+                        Text(format.title + (format.isAvailable ? "" : L(" · недоступний"))).tag(format.rawValue).disabled(!format.isAvailable)
                     }
+                }
+                .labelsHidden().pickerStyle(.menu).controlSize(.regular)
                 }
                 .onChange(of: model.format) {
                     model.applyFormatDefaults()
                 }
+                if model.preserveImageFormat {
+                    Text(L("Змінимо лише розміри й залишимо формат кожного файла. JPEG та інші формати з втратами потребують повторного запису з високою якістю."))
+                        .font(.callout).foregroundStyle(.secondary)
+                } else {
                 Text(model.format.shortDescription).font(.callout).foregroundStyle(.secondary)
                 DisclosureGroup(L("Про \(model.format.title)")) {
                     Text(model.format.explanation).foregroundStyle(.secondary)
                     Link(L("Офіційна документація"), destination: model.format.documentation)
                 }
+                }
             }
+            ImageResizeOptionsView(model: model)
+            if !model.preserveImageFormat {
             Section(L("Якість")) {
                 if model.format.canChooseLossless {
-                    Toggle(L("Без втрати якості"), isOn: $model.lossless)
+                    Toggle(model.imageSizeReduction > 0 ? L("Без додаткових втрат") : L("Без втрати якості"), isOn: $model.lossless)
                         .help(L("Зберігає пікселі зображення. Уже втрачені деталі не відновлюються; файл може збільшитися."))
                 }
                 if model.lossless {
-                    Text(L("Якість зображення збережеться. Файл може стати більшим — тоді запитаємо, чи залишати його."))
+                    Text(model.imageSizeReduction > 0 ? L("Після зменшення розмірів стиснемо без додаткових втрат. Саме зменшення прибирає частину деталей.") : L("Якість зображення збережеться. Файл може стати більшим — тоді запитаємо, чи залишати його."))
                         .foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 12) {
@@ -45,6 +61,7 @@ struct OptimizationSettingsView: View {
                         Link(L("Офіційна довідка"), destination: model.format.qualityDocumentation)
                     }
                 }
+            }
             }
             } else if model.fileKind == .pdf {
                 PDFOptionsView(model: model)
@@ -88,7 +105,7 @@ struct OptimizationSettingsView: View {
             DisclosureGroup(L("Захист оригіналів")) {
                 Text(L("Системні ресурси, поточні шпалери, бібліотеки «Фото», пакети застосунків, символічні посилання та приховані папки виключені."))
                 Text(L("Анімації, RAW і непідтримувані формати пропускаються. HDR та понад 8 біт можна перетворити на SDR-копію після попередження."))
-                Text(L("Метадані зберігаються за можливості кодека, зокрема геолокація. Розміри зображень не змінюємо."))
+                Text(L("Метадані зберігаються за можливості кодека, зокрема геолокація. Розміри змінюємо лише за твоїм вибором."))
             }.foregroundStyle(.secondary)
             DisclosureGroup(L("Що означають відсотки")) {
                 Text(L("«На 75% менше» означає: файл 4 МБ став 1 МБ. Залишилося 25% початкової ваги. Це не вимір якості зображення."))

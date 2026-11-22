@@ -6,18 +6,15 @@ import CoreImage
 public enum ImageEncoder {
     @concurrent public static func encode(_ source: ImageRecord, settings: EncodeSettings, codecURL: URL, progress: @Sendable (Double?) async -> Void) async throws -> EncodedCandidate {
         try Task.checkCancellation()
+        var settings = settings
+        guard (10...100).contains(settings.scalePercent) else { throw ImageFailure.message(L("Масштаб має бути від 10% до 100%.")) }
         guard source.isEligible else { throw ImageFailure.message(source.restriction ?? L("Файл не підтримується.")) }
-        guard settings.format.isAvailable else { throw ImageFailure.message(L("Системний кодек \(settings.format.title) недоступний у цій macOS. Обери інший формат.")) }
-        if settings.format == .webp && (source.width > 16383 || source.height > 16383) { throw ImageFailure.message(L("WebP підтримує максимум 16 383 × 16 383 пікселі.")) }
-        if settings.format == .jpeg && source.hasAlpha { throw ImageFailure.message(L("JPEG не підтримує прозорість. Обери WebP або PNG.")) }
-        if settings.lossless && !settings.format.supportsLossless { throw ImageFailure.message(L("Для \(settings.format.title) у цьому застосунку немає режиму без втрат. Обери PNG, TIFF або WebP.")) }
         let fm = FileManager.default
         let directory = fm.temporaryDirectory.appendingPathComponent("ImageOptim-" + UUID().uuidString, isDirectory: true)
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         var keep = false
         defer { if !keep { try? fm.removeItem(at: directory) } }
         let input = directory.appendingPathComponent("input." + source.url.pathExtension)
-        let output = directory.appendingPathComponent("result." + settings.format.fileExtension)
         let values = try fm.attributesOfItem(atPath: source.url.path)
         guard values[.type] as? FileAttributeType == .typeRegular, (values[.size] as? NSNumber)?.int64Value == source.bytes, values[.modificationDate] as? Date == source.modified else {
             throw ImageFailure.message(L("Оригінал змінився після сканування. Проскануй папку повторно."))
@@ -27,6 +24,21 @@ public enum ImageEncoder {
         guard try sha256(source.url) == digest else { throw ImageFailure.message(L("Файл змінюється іншою програмою. Спробуй пізніше.")) }
         let snapshot = ImageScanner.inspect(url: input, root: directory, bytes: source.bytes, modified: source.modified)
         guard snapshot.isEligible else { throw ImageFailure.message(snapshot.restriction ?? L("Зображення більше не підтримується.")) }
+        if settings.preserveInputFormat {
+            guard let input = CGImageSourceCreateWithURL(input as CFURL, nil), let originalFormat = OutputFormat.matchingSource(input) else {
+                throw ImageFailure.message(L("Не можемо записати поточний формат цього файла. Обери інший формат праворуч; оригінал залишиться."))
+            }
+            settings.format = originalFormat
+            settings.lossless = originalFormat.supportsLossless
+            settings.quality = min(95, originalFormat.qualityMaximum)
+        }
+        let dimensions = settings.outputDimensions(width: source.width, height: source.height)
+        guard settings.format.isAvailable else { throw ImageFailure.message(L("Системний кодек \(settings.format.title) недоступний у цій macOS. Обери інший формат.")) }
+        if settings.format == .webp && (dimensions.width > 16383 || dimensions.height > 16383) { throw ImageFailure.message(L("WebP підтримує максимум 16 383 × 16 383 пікселі.")) }
+        if settings.format == .jpeg && source.hasAlpha { throw ImageFailure.message(L("JPEG не підтримує прозорість. Обери WebP або PNG.")) }
+        if settings.lossless && !settings.format.supportsLossless { throw ImageFailure.message(L("Для \(settings.format.title) у цьому застосунку немає режиму без втрат. Обери PNG, TIFF або WebP.")) }
+        let extensionName = settings.preserveInputFormat && settings.format.sourceExtensions.contains(source.url.pathExtension.lowercased()) ? source.url.pathExtension : settings.format.fileExtension
+        let output = directory.appendingPathComponent("result." + extensionName)
         if snapshot.requiresSDRConversion && !settings.allowHDRToSDR {
             throw ImageFailure.message(L("HDR потребує підтвердження перетворення на SDR."))
         }
@@ -35,6 +47,11 @@ public enum ImageEncoder {
             encodingInput = directory.appendingPathComponent("sdr-input.png")
             try convertToSDR(input: input, output: encodingInput, preserveMetadata: settings.preserveMetadata)
             try Task.checkCancellation()
+        }
+        if settings.scalePercent < 100 {
+            let resized = directory.appendingPathComponent("resized-input.png")
+            try ImageResizer.writePNG(input: encodingInput, output: resized, width: dimensions.width, height: dimensions.height, hasAlpha: snapshot.hasAlpha, preserveMetadata: settings.preserveMetadata)
+            encodingInput = resized
         }
         if settings.format == .jpeg && snapshot.hasAlpha { throw ImageFailure.message(L("JPEG не підтримує прозорість. Обери WebP або PNG.")) }
         await progress(nil)
@@ -46,7 +63,7 @@ public enum ImageEncoder {
             let orientation = properties?[kCGImagePropertyOrientation] as? Int ?? 1
             let retainOrientationOnly = !settings.preserveMetadata && orientation != 1
             var webpInput = encodingInput
-            if !directlySupported.contains(source.url.pathExtension.lowercased()) || retainOrientationOnly {
+            if !directlySupported.contains(encodingInput.pathExtension.lowercased()) || retainOrientationOnly {
                 webpInput = directory.appendingPathComponent("decoded-input.png")
                 try nativeEncode(input: encodingInput, output: webpInput, settings: EncodeSettings(format: .png, preserveMetadata: settings.preserveMetadata))
                 try Task.checkCancellation()
@@ -59,12 +76,15 @@ public enum ImageEncoder {
         try Task.checkCancellation()
         // Force a full decode before any source can be moved to Trash.
         guard let decodedSource = CGImageSourceCreateWithURL(output as CFURL, nil), CGImageSourceGetCount(decodedSource) == 1,
-              let image = CGImageSourceCreateImageAtIndex(decodedSource, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary), image.width == source.width, image.height == source.height else {
+              let image = CGImageSourceCreateImageAtIndex(decodedSource, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary), image.width == dimensions.width, image.height == dimensions.height else {
             throw ImageFailure.message(L("Результат не пройшов перевірку читання та розмірів. Оригінал збережено."))
         }
         let bytes = Int64(try output.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
         guard bytes > 0 else { throw ImageFailure.message(L("Кодек створив порожній файл.")) }
-        try fm.removeItem(at: input)
+        // Only the validated final output remains in the candidate directory.
+        for url in try fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) where url.standardizedFileURL.path != output.standardizedFileURL.path {
+            try fm.removeItem(at: url)
+        }
         keep = true
         await progress(1)
         return EncodedCandidate(source: source, directory: directory, file: output, bytes: bytes, sourceDigest: digest, settings: settings, notices: snapshot.requiresSDRConversion ? [L("HDR перетворено на SDR; оригінал збережено.")] : [], retainsOriginal: snapshot.requiresSDRConversion)

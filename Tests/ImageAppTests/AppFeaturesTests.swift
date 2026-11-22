@@ -5,6 +5,35 @@ import ImageCore
 @testable import ImageOptimMac
 
 @MainActor struct AppFeaturesTests {
+    @Test func originalFormatResizeUsesSelectedScaleAndShowsResultDimensions() async throws {
+        let root = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = try png(root.appendingPathComponent("resize.png"))
+        let suite = "Chonko-resize-model-" + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = AppModel(defaults: defaults, codecURL: codec)
+        model.importFiles([source.url]); await model.operation?.value
+        model.preserveImageFormat = true; model.saveMode = .alongside
+        model.requestOptimization()
+        #expect(model.errorMessage != nil && !model.optimizing)
+        model.errorMessage = nil
+        model.imageResizePreset = 50
+        #expect(model.resizeExample?.contains("256 × 256") == true)
+        model.requestOptimization(); await model.operation?.value
+        let row = try #require(model.rows.first)
+        if row.candidate != nil { model.keepLarger(row); await model.operation?.value }
+        let url = try #require(row.outputURL)
+        #expect(url.pathExtension == "png")
+        #expect(row.outputPixelSize == "256 × 256 px")
+        #expect(FileManager.default.fileExists(atPath: source.url.path))
+        model.imageResizePreset = 0; model.imageSizeReduction = 63
+        #expect(model.imageScalePercent == 37)
+        model.imageResizePreset = 100
+        #expect(model.imageScalePercent == 100)
+        model.cleanup()
+    }
+
     @Test func launchDoesNotScanAndFiltersAllowExplicitWebP() async throws {
         let root = try makeDirectory()
         defer { try? FileManager.default.removeItem(at: root) }

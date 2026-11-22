@@ -20,6 +20,7 @@ import ImageCore
     var running = false
     var completed = false
     var outputBytes: Int64?
+    var outputPixelSize: String?
     var conversionNotice: String?
     var outputURL: URL?
     var trashedOriginalURL: URL?

@@ -226,6 +226,7 @@ struct ContentView: View {
                 VStack(alignment: .leading) {
                     if let bytes = row.outputBytes {
                         Text(formatBytes(bytes)).monospacedDigit()
+                        if let size = row.outputPixelSize { Text(size).font(.caption).foregroundStyle(.secondary) }
                         let change = FileSizeChange(originalBytes: row.record.bytes, resultBytes: bytes)
                         Text(change.summary)
                             .foregroundStyle(bytes >= row.record.bytes ? .orange : .green)

@@ -11,6 +11,23 @@ public enum OutputFormat: String, CaseIterable, Identifiable, Sendable {
         default: rawValue.uppercased()
         }
     }
+    public var sourceExtensions: Set<String> {
+        switch self {
+        case .jpeg: ["jpg", "jpeg"]
+        case .png: ["png"]
+        case .webp: ["webp"]
+        case .heic: ["heic", "heif"]
+        case .tiff: ["tif", "tiff"]
+        case .jpeg2000: ["jp2"]
+        case .avif: ["avif"]
+        }
+    }
+    public static func matchingSource(_ source: CGImageSource) -> OutputFormat? {
+        guard let type = CGImageSourceGetType(source) as String? else { return nil }
+        if ["org.webmproject.webp", "public.webp"].contains(type) { return .webp }
+        if type == "public.heif" { return .heic }
+        return allCases.first { $0.imageIOType == type }
+    }
     public var fileExtension: String {
         switch self { case .jpeg: "jpg"; case .jpeg2000: "jp2"; default: rawValue }
     }
@@ -108,6 +125,13 @@ public struct EncodeSettings: Sendable {
     public var quality: Int
     public var preserveMetadata: Bool
     public var allowHDRToSDR = false
+    public var preserveInputFormat = false
+    /// Percentage of width and height retained; never upscales.
+    public var scalePercent = 100
+    public func outputDimensions(width: Int, height: Int) -> (width: Int, height: Int) {
+        let scale = Double(min(100, max(10, scalePercent))) / 100
+        return (max(1, Int((Double(width) * scale).rounded())), max(1, Int((Double(height) * scale).rounded())))
+    }
     public init(format: OutputFormat = .webp, lossless: Bool = false, quality: Int = 75, preserveMetadata: Bool = true) {
         self.format = format
         self.lossless = lossless || format.alwaysLossless

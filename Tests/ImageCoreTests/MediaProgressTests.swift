@@ -23,7 +23,7 @@ struct MediaProgressTests {
         let marker = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: marker) }
         // The child fails if its first line is buffered until process termination.
-        _ = try await ExternalProcess.run(URL(fileURLWithPath: "/bin/sh"), ["-c", "printf 'ready\\n'; sleep 1; test -f \"$1\"", "test", marker.path]) { line in
+        _ = try await ExternalProcess.run(URL(fileURLWithPath: "/bin/sh"), ["-c", "printf 'ready\\n'; attempt=0; while [ \"$attempt\" -lt 200 ]; do test -f \"$1\" && exit 0; sleep 0.05; attempt=$((attempt+1)); done; exit 1", "test", marker.path]) { line in
             if line == "ready" { try? Data().write(to: marker) }
         }
         #expect(FileManager.default.fileExists(atPath: marker.path))

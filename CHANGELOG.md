@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 — 2026-11-22
+
+- Resize selected images with 1×, 0.75×, 0.5× and 0.25× presets, or a custom 0–90% reduction of width and height.
+- Keep aspect ratio with whole-pixel rounding; never upscale.
+- Choose Original Format to resize JPEG, PNG, WebP, HEIC/HEIF, TIFF, JPEG 2000 and AVIF without changing image formats where encoding is available.
+- Show a live dimensions example and each result’s pixel dimensions.
+- Preserve orientation, transparency and supported metadata, and validate the requested output dimensions before saving.
+- Retain HDR conversion warnings and existing file protection, original-change checks and Trash replacement.
+
 ## 1.1.1 — 2026-11-14
 
 - Default all three media modes to verified replacement, moving originals to Trash only after a successful save.
